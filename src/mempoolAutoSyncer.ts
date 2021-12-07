@@ -16,6 +16,7 @@ export class MempoolSyncer {
   pushCount: number = 0; //成功的交易数
   leftCount: number = 0; //剩余交易数
   mapi: MerchantApi;
+  mapi2: MerchantApi;
   name: string = "";
   syncMessageEnabled: boolean = false;
   constructor(mapiTarget: MAPI_TARGET) {
@@ -27,6 +28,7 @@ export class MempoolSyncer {
       this.name = "other";
     }
     this.mapi = new MerchantApi(mapiTarget, MAPI_NET.MAIN, "");
+    this.mapi2 = new MerchantApi(MAPI_TARGET.GORILLA, MAPI_NET.MAIN, "");
   }
 
   getSyncProgressInfo() {
@@ -103,7 +105,7 @@ export class MempoolSyncer {
       list = sensiblePool;
     } catch (e) {
       console.log("getMempool failed");
-      if (this.failedTimes > 30) {
+      if (this.failedTimes > 3000000) {
         let msg = `${this.name}
   同步中断: ${this.nextTxId}
   跳过存在数: ${this.skipCount}
@@ -127,7 +129,7 @@ export class MempoolSyncer {
         setTimeout(() => {
           console.log("retry");
           this.runJob();
-        }, 5000);
+        }, 30000);
       }
 
       return;
@@ -150,7 +152,7 @@ export class MempoolSyncer {
         return;
       }
       try {
-        let status = await this.mapi.getTransactionStatus(txid);
+        /*let status = await this.mapi.getTransactionStatus(txid);
         if (status.returnResult == "success") {
           this.failedTimes = 0;
           this.skipCount++;
@@ -159,10 +161,11 @@ export class MempoolSyncer {
           console.log(
             `success ${i} skip:${this.skipCount} push:${this.pushCount} txid: ${txid}`
           );
-        } else {
+        } else {*/
           let txHex = await sensibleApi.getRawTxData(txid);
+          //let result2 = this.mapi2.broadcast(txHex);
           let result = await this.mapi.broadcast(txHex);
-          if (result.returnResult == "success") {
+          if (result.returnResult == "success" || result.resultDescription == 'Transaction already in the mempool') {
             this.failedTimes = 0;
             this.pushCount++;
             this.leftCount = list.length - i;
@@ -177,7 +180,7 @@ export class MempoolSyncer {
             console.log(result);
             errorMessage = `推送失败! ${result.resultDescription}`;
           }
-        }
+        //}
       } catch (e) {
         if ((e as any).reqData) delete (e as any).reqData;
         console.log("failed", i, failed, txid, e);
@@ -191,7 +194,7 @@ export class MempoolSyncer {
     }
     let msg = "";
     if (errorMessage) {
-      if (this.failedTimes > 3) {
+      if (this.failedTimes > 30000000000) {
         msg = `\n${this.name}
   同步中断: ${this.nextTxId}
   跳过存在数: ${this.skipCount}
@@ -213,7 +216,7 @@ export class MempoolSyncer {
         setTimeout(() => {
           console.log("retry");
           this.runJob();
-        }, 5000);
+        }, 30000);
       }
     } else {
       if (success > 0) {
