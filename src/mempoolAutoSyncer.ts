@@ -125,7 +125,7 @@ export class MempoolSyncer {
         this.printMsg(msg);
         this.skipCount = 0;
         this.pushCount = 0;
-        this.failedTimes++;
+        //this.failedTimes++;
         setTimeout(() => {
           console.log("retry");
           this.runJob();
@@ -188,7 +188,7 @@ export class MempoolSyncer {
         failed++;
       }
       if (errorMessage) {
-        this.failedTimes++;
+        //this.failedTimes++;
         break;
       }
     }
@@ -230,7 +230,12 @@ export class MempoolSyncer {
         //         msg = `\n${this.name}
         // 同步完成。`;
       }
-      this.jobRunning = false;
+      //this.jobRunning = false;
+      console.log('retry in 10 minutes')
+      setTimeout(() => {
+        console.log("retry");
+        this.runJob();
+      }, 600000);
     }
     if (msg) {
       this.printMsg(msg);
