@@ -16,36 +16,53 @@ export async function syncTxToWoc(txid: string) {
   return await wocApi.broadcast(txHex);
 }
 
-export async function syncFromMempoolToWoc() {
-  let wocPool = await wocApi.getMempool();
-  let sensiblePool = await sensibleApi.getMempool();
-  let list = sensiblePool.filter((v) => wocPool.includes(v) == false);
-  console.log("wocPool:", wocPool.length);
-  console.log("sensiblePool:", sensiblePool.length);
-  console.log("diff:", list.length);
-  let success = 0;
-  let failed = 0;
-  for (let i = 0; i < list.length; i++) {
-    let txid = list[i];
-    try {
-      let _res = await syncTxToWoc(txid);
-      console.log("success", i, success, txid);
-      success++;
-    } catch (e) {
-      if (e.reqData) delete e.reqData;
-      console.log("failed", i, failed, txid, e);
-      failed++;
-    }
-  }
-  console.log(success, failed);
-}
-
 async function sleep(time) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       resolve(0);
     }, time * 1000);
   });
+}
+
+export async function syncFromMempoolToWoc() {
+  while (true) {
+    let list
+    try {
+      let wocPool = await wocApi.getMempool();
+      let sensiblePool = await sensibleApi.getMempool();
+      list = sensiblePool.filter((v) => wocPool.includes(v) == false);
+      console.log("wocPool:", wocPool.length);
+      console.log("sensiblePool:", sensiblePool.length);
+      console.log("diff:", list.length);
+    } catch (e) {
+      console.log(e)
+      console.log('sleep 30s')
+      await sleep(30)
+      continue
+    }
+    let success = 0;
+    let failed = 0;
+    for (let i = 0; i < list.length; i++) {
+      let txid = list[i];
+      try {
+        await syncTxToWoc(txid);
+        console.log("success", i, success, txid);
+        success++;
+      } catch (e) {
+        if (e.reqData) delete e.reqData;
+        if (e.message && e.message.indexOf('Transaction already in the mempool') >= 0) {
+          continue
+        }
+        console.log("failed", i, failed, txid, e);
+        failed++;
+        break
+      }
+    }
+    console.log(success, failed);
+    // sleep 30s
+    console.log('sleep 30s')
+    await sleep(30)
+  }
 }
 
 async function syncFromSensibleToMapi(mapi: MerchantApi) {
