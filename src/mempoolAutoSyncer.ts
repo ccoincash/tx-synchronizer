@@ -12,11 +12,11 @@ export class MempoolSyncer {
   nextTxId: string = "";
   failedTimes: number = 0;
   jobRunning: boolean = false;
-  skipCount: number = 0; //跳过的交易数
-  pushCount: number = 0; //成功的交易数
-  leftCount: number = 0; //剩余交易数
+  skipCount: number = 0; 
+  pushCount: number = 0; 
+  leftCount: number = 0; 
   mapi: MerchantApi;
-  mapi2: MerchantApi;
+  //mapi2: MerchantApi;
   name: string = "";
   syncMessageEnabled: boolean = false;
   constructor(mapiTarget: MAPI_TARGET) {
@@ -28,15 +28,15 @@ export class MempoolSyncer {
       this.name = "other";
     }
     this.mapi = new MerchantApi(mapiTarget, MAPI_NET.MAIN, "");
-    this.mapi2 = new MerchantApi(MAPI_TARGET.GORILLA, MAPI_NET.MAIN, "");
+    //this.mapi2 = new MerchantApi(MAPI_TARGET.GORILLA, MAPI_NET.MAIN, "");
   }
 
   getSyncProgressInfo() {
     return `\n${this.name}
-  正在同步:${this.nextTxId}
-  跳过存在数: ${this.skipCount}
-  推送成功数: ${this.pushCount}
-  剩余同步数: ${this.leftCount}
+  syncing:${this.nextTxId}
+  skip num: ${this.skipCount}
+  succ num: ${this.pushCount}
+  left num: ${this.leftCount}
           `;
   }
 
@@ -107,21 +107,21 @@ export class MempoolSyncer {
       console.log("getMempool failed");
       if (this.failedTimes > 3000000) {
         let msg = `${this.name}
-  同步中断: ${this.nextTxId}
-  跳过存在数: ${this.skipCount}
-  成功推送数: ${this.pushCount}
-  中断次数过多，终止同步`;
+  sync failed: ${this.nextTxId}
+  skip num: ${this.skipCount}
+  succ num: ${this.pushCount}
+  sync failed too many, stop`;
         this.skipCount = 0;
         this.pushCount = 0;
         this.jobRunning = false;
         this.printMsg(msg);
       } else {
         let msg = `${this.name}
-  同步中断: ${this.nextTxId}
-  跳过存在数: ${this.skipCount}
-  成功推送数: ${this.pushCount}
+  sync failed: ${this.nextTxId}
+  skip num: ${this.skipCount}
+  succ num: ${this.pushCount}
   getMempool failed
-  将在5s后重试`;
+  retry after 30s`;
         this.printMsg(msg);
         this.skipCount = 0;
         this.pushCount = 0;
@@ -144,15 +144,15 @@ export class MempoolSyncer {
       this.nextTxId = txid;
       if (this.jobRunning != true) {
         this.printMsg(`${this.name}
-  同步中断: ${this.nextTxId}
-  跳过存在数: ${this.skipCount}
-  成功推送数: ${this.pushCount}
-  剩余同步数: ${list.length - i}
+  sync failed: ${this.nextTxId}
+  skip num: ${this.skipCount}
+  succ num: ${this.pushCount}
+  left num: ${list.length - i}
           `);
         return;
       }
       try {
-        /*let status = await this.mapi.getTransactionStatus(txid);
+        let status = await this.mapi.getTransactionStatus(txid);
         if (status.returnResult == "success") {
           this.failedTimes = 0;
           this.skipCount++;
@@ -161,7 +161,7 @@ export class MempoolSyncer {
           console.log(
             `success ${i} skip:${this.skipCount} push:${this.pushCount} txid: ${txid}`
           );
-        } else {*/
+        } else {
           let txHex = await sensibleApi.getRawTxData(txid);
           //let result2 = this.mapi2.broadcast(txHex);
           let result = await this.mapi.broadcast(txHex);
@@ -178,13 +178,13 @@ export class MempoolSyncer {
               `failed ${i} skip:${this.skipCount} push:${this.pushCount} txid: ${txid}`
             );
             console.log(result);
-            errorMessage = `推送失败! ${result.resultDescription}`;
+            errorMessage = `pushtx failed! ${result.resultDescription}`;
           }
-        //}
+        }
       } catch (e) {
         if ((e as any).reqData) delete (e as any).reqData;
         console.log("failed", i, failed, txid, e);
-        errorMessage = `推送失败!`;
+        errorMessage = `pushtx failed!`;
         failed++;
       }
       if (errorMessage) {
@@ -196,21 +196,21 @@ export class MempoolSyncer {
     if (errorMessage) {
       if (this.failedTimes > 30000000000) {
         msg = `\n${this.name}
-  同步中断: ${this.nextTxId}
-  跳过存在数: ${this.skipCount}
-  成功推送数: ${this.pushCount}
+  sync failed: ${this.nextTxId}
+  skip num: ${this.skipCount}
+  succ num: ${this.pushCount}
   ${errorMessage}
-  中断次数过多，终止同步`;
+  failed too many times, stop`;
         this.skipCount = 0;
         this.pushCount = 0;
         this.jobRunning = false;
       } else {
         msg = `\n${this.name}
-  同步中断: ${this.nextTxId}
-  跳过存在数: ${this.skipCount}
-  成功推送数: ${this.pushCount}
+  sync stop: ${this.nextTxId}
+  skip num: ${this.skipCount}
+  succ num: ${this.pushCount}
   ${errorMessage}
-  将在5s后重试`;
+  retry after 30s`;
         this.skipCount = 0;
         this.pushCount = 0;
         setTimeout(() => {
